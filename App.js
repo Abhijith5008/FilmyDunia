@@ -1,20 +1,34 @@
+import { Provider } from 'react-redux';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import store from './local/store';
+import LoginScreen from './screens/login';
+import MovieScreen from './screens/movies';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useColorScheme } from 'react-native';
+
+const Stack = createStackNavigator();
 
 export default function App() {
+  const scheme = useColorScheme();
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      <StatusBar barStyle="dark-content" />
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Movies" >
+          <Stack.Screen name="Login" component={LoginScreen}
+            options={{
+              headerShown: false
+            }}
+          />
+          <Stack.Screen name="Movies" component={MovieScreen}
+            options={{
+              headerShown: false
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
