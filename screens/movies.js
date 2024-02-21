@@ -1,12 +1,56 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Dimensions, Button, Modal, TouchableHighlight } from 'react-native';
 import axios from 'axios';
 import MovieList from '../components/movieList';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Animatable from 'react-native-animatable';
+import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import Fuse from 'fuse.js';
+import { LANG_MAP } from '../components/languageMapper';
+import SelectDropdown from 'react-native-select-dropdown'
+
+const { width, height } = Dimensions.get("window");
 
 const MovieScreen = () => {
+  const languages = [
+    'Chinese (Hong Kong)',
+    'Czech',
+    'Danish',
+    'English',
+    'Greek',
+    'Hindi',
+    'Irish',
+    'Japanese',
+    'Korean',
+    'Malayalam',
+    'Polish',
+    'Punjabi',
+    'Romanian',
+    'Russian',
+    'Serbian',
+    'Slovak',
+    'Slovenian',
+    'Sorbian',
+    'Swedish',
+    'Urdu'
+  ];
 
   const [movies, setMovies] = useState('');
+  const [searchMovies, setSearchMovies] = useState('');
+  const [rating, setRating] = useState('');
   const [page, setPage] = useState(1);
+  const searchRef = useRef(null);
+  const logoRef = useRef(null);
+  const [hideSearch, setHideSearch] = useState(false);
+  const [popularityFlag, setPopularityFlag] = useState(false);
+  const [asortFlag, setAsortFlag] = useState(false);
+  const [filterFlag, setFilterFlag] = useState(false);
+  const [renderFlag, setRenderFlag] = useState(true);
+  const [searchInput, setSearchInput] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [bkMrkFlag, setBkMarkFlag] = useState(false);
+  const [favFlag, setFavFlag] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState(null);
 
   const callApi = () => {
     setPage(page + 1);
@@ -22,23 +66,258 @@ const MovieScreen = () => {
 
     axios
       .request(options)
-      .then(function (response) {
+      .then(async function (response) {
         setMovies(prevMovies => [...prevMovies, ...response.data.results]);
+        setSearchMovies(prevMovies => [...prevMovies, ...response.data.results]);
+        const updatedMovies = [...movies, ...response.data.results];
+        await AsyncStorage.setItem('Movies', JSON.stringify(updatedMovies));
       })
       .catch(function (error) {
         console.error(error);
       });
-  }
+  };
 
+  const searchMoviesList = (value) => {
+    setSearchInput(value);
+    const fuse = new Fuse(searchMovies, {
+      shouldSort: true,
+      threshold: 0.1,
+      location: 0,
+      distance: 100,
+      keys: ['title']
+    });
+    const results = fuse.search(value);
+    const finalResult = [];
+    if (results && results.length > 0) {
+      results.forEach((item) => {
+        finalResult.push(item.item);
+      });
+      const fuseResult = [...finalResult];
+      setSearchMovies(fuseResult);
+    } else {
+      setSearchMovies(movies);
+    }
+  };
+
+  const getLocal = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem('Movies');
+      if (jsonValue) {
+        const parsedNotes = JSON.parse(jsonValue);
+        console.log(parsedNotes);
+        setMovies(parsedNotes);
+        setSearchMovies(parsedNotes);
+      } else {
+        callApi();
+      }
+    } catch (e) {
+      console.error('Error loading notes:', e);
+    }
+  };
+
+  const handleView = () => {
+    setSearchMovies(movies);
+    if (searchRef.current) {
+      searchRef.current.animate("bounceOut", 400);
+    };
+    setTimeout(function () {
+      setHideSearch(false);
+    }, 200);
+  };
+
+  const handleSearchClear = () => {
+    if (searchInput === null) {
+      searchRef.current?.animate("bounceOut", 400);
+      setSearchInput(null);
+      setTimeout(function () {
+        setHideSearch(false);
+      }, 200);
+    } else {
+      setSearchInput(null);
+    }
+  };
+
+  const sortByPopularity = () => {
+    setRenderFlag(!renderFlag);
+    setPopularityFlag(!popularityFlag);
+    if (popularityFlag === false) {
+      const sorted = [...movies].sort((a, b) => b.popularity - a.popularity);
+      setSearchMovies(sorted);
+    } else {
+      setSearchMovies(movies);
+    }
+  };
+
+  const sortByAlphabetical = () => {
+    setAsortFlag(!asortFlag);
+    setRenderFlag(!renderFlag);
+    if (asortFlag === false) {
+      const sorted = [...movies].sort((a, b) => a.title.localeCompare(b.title));
+      setSearchMovies(sorted);
+    } else {
+      setSearchMovies(movies);
+    }
+  };
+
+  const sortByFav = () => {
+    setFavFlag(!favFlag);
+    setRenderFlag(!renderFlag);
+    if (favFlag === false) {
+      const sorted = movies.filter(movie => movie.fav === true);
+      setSearchMovies(sorted);
+    } else {
+      setSearchMovies(movies);
+    }
+  };
+
+  const sortByWatchList = () => {
+    setBkMarkFlag(!bkMrkFlag);
+    setRenderFlag(!renderFlag);
+    if (bkMrkFlag === false) {
+      const sorted = movies.filter(movie => movie.bookmarked === true);
+      setSearchMovies(sorted);
+    } else {
+      setSearchMovies(movies);
+    }
+  };
+
+  const handleIconPress = () => {
+    setHideSearch(true);
+  };
+
+  const handleFilterClick = () => {
+    let lang;
+    let sorted;
+    if (selectedLanguage) {
+      lang = LANG_MAP.get(selectedLanguage);
+      sorted = movies.filter(movie => movie.original_language === lang);
+      console.log(sorted)
+      setRenderFlag(!renderFlag);
+      setSearchMovies(sorted);
+    }
+    if (rating) {
+      lang = LANG_MAP.get(selectedLanguage);
+      sorted = movies.filter(movie => movie.userRating >= rating);
+      console.log(sorted)
+      setRenderFlag(!renderFlag);
+      setSearchMovies(sorted);
+    }
+    setModalVisible(!modalVisible);
+  };
 
   useEffect(() => {
-    callApi();
+    getLocal();
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Popular Movies</Text>
-      <MovieList movies={movies} callBack={callApi} />
+      <Image
+        style={styles.titleImage}
+        source={require('../assets/filmyBg.png')}
+      />
+      {hideSearch == false ?
+        <Animatable.View ref={logoRef} animation={"fadeIn"} duration={400} easing="ease" style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Popular Movies</Text>
+          <TouchableOpacity onPress={handleIconPress}>
+            <Ionicons name="search" size={10 * 2.7} color="#000" />
+          </TouchableOpacity>
+        </Animatable.View>
+        :
+        <Animatable.View
+          ref={searchRef}
+          easing="ease"
+          animation="bounceInRight"
+          duration={600}
+          style={[styles.touch, { marginLeft: 14, margin: 5, flexDirection: "row", justifyContent: "space-between" }]}
+        >
+          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-around" }}>
+            <TouchableOpacity onPress={handleView}>
+              <Ionicons name="chevron-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <TextInput
+              placeholder="Search .."
+              value={searchInput}
+              style={{
+                color: "#333232",
+                fontSize: 10 * 2,
+                marginLeft: 10,
+                width: 200
+              }}
+              onChangeText={(e) => searchMoviesList(e)}
+            />
+            <Ionicons name="search" size={24} color="#000" />
+          </View>
+          <TouchableOpacity onPress={handleSearchClear}>
+            <Ionicons name="close-outline" size={25} color="#000" />
+          </TouchableOpacity>
+        </Animatable.View>
+      }
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setModalVisible(true)}>
+          <FontAwesome5 name="filter" size={24} color={filterFlag === true ? "black" : "grey"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={sortByPopularity}>
+          <Entypo name="line-graph" size={24} color={popularityFlag === true ? "black" : "grey"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={sortByAlphabetical}>
+          <FontAwesome5 name="sort-alpha-down" size={24} color={asortFlag === true ? "black" : "grey"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={sortByWatchList}>
+          <MaterialIcons name={bkMrkFlag ? 'bookmark' : 'bookmark-border'} size={24} color={bkMrkFlag === true ? "blue" : "grey"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={sortByFav}>
+          <MaterialIcons name={favFlag ? 'favorite' : 'favorite-border'} size={24} color={favFlag === true ? "red" : "grey"} />
+        </TouchableOpacity>
+      </View>
+      <MovieList movies={searchMovies} callBack={callApi} reRenderCall={renderFlag} />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.');
+          setModalVisible(!modalVisible);
+        }}>
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Filter</Text>
+            <View style={{ borderBottomColor: 'black', borderBottomWidth: StyleSheet.hairlineWidth, width: 200, marginVertical: 20 }} />
+            <View style={styles.userInput}>
+              <TextInput
+                placeholder="Search User Rating"
+                value={rating}
+                style={{
+                  textAlign: "left",
+                  color: "#333232",
+                  fontSize: 10 * 2,
+                  marginLeft: 10,
+                  width: 200
+                }}
+                onChangeText={(e) => setRating(e)}
+              />
+            </View>
+            <SelectDropdown
+              data={languages}
+              onSelect={(selectedItem) => {
+                setSelectedLanguage(selectedItem);
+              }}
+              defaultButtonText={selectedLanguage?selectedLanguage:"Select Language"}
+              buttonStyle={styles.dropBtn}
+              buttonTextStyle={{ color: '#333' }}
+              dropdownStyle={{ marginTop: -3, backgroundColor: '#fafafa' }}
+              dropdownTextStyle={{ color: '#333' }}
+            />
+            <View style={[styles.buttonsContainer, { justifyContent: "space-between", marginVertical: 20 }]}>
+              <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} title="Login" onPress={handleFilterClick}>
+                <Text style={{ color: "#fff", fontSize: 16 }}>Apply</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} title="Login" onPress={() => setModalVisible(!modalVisible)} >
+                <Text style={{ color: "#fff", fontSize: 16 }}>close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -49,6 +328,126 @@ const styles = StyleSheet.create({
     padding: 10,
     paddingTop: 45,
     backgroundColor: '#fcfcf7',
+  },
+  userInput: {
+    width: 195,
+    height: 50,
+    padding: 10,
+    margin: 5,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    backgroundColor: '#fcfcf7',
+    borderRadius: 9,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 1,
+    marginVertical: 20
+  },
+  titleImage: {
+    width: width / 2,
+    height: 40,
+    alignSelf: "center",
+    resizeMode: "cover",
+  },
+  dropBtn: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    backgroundColor: '#fcfcf7',
+    borderRadius: 9,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 1,
+    marginVertical: 20
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  sortButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: '#fcfcf7',
+    borderRadius: 9,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 1,
+  },
+  touch: {
+    width: width / 1.1 - 10,
+    height: height / 14,
+    margin: 2,
+    backgroundColor: '#fcfcf7',
+    padding: 15,
+    borderRadius: 9,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 1,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 22,
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: '#fcfcf7',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+  },
+  buttonOpen: {
+    backgroundColor: '#F194FF',
+  },
+  buttonClose: {
+    backgroundColor: '#2196F3',
+  },
+  textStyle: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 20,
+    textAlign: 'center',
   },
 });
 

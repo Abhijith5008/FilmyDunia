@@ -16,7 +16,7 @@ export default function App() {
     <>
       <StatusBar barStyle="dark-content" />
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Movies" >
+        <Stack.Navigator initialRouteName="Login" >
           <Stack.Screen name="Login" component={LoginScreen}
             options={{
               headerShown: false
