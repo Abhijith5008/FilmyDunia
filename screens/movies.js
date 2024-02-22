@@ -7,11 +7,12 @@ import * as Animatable from 'react-native-animatable';
 import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Fuse from 'fuse.js';
 import { LANG_MAP } from '../components/languageMapper';
+import LogoutModal from '../components/logoutModal';
 import SelectDropdown from 'react-native-select-dropdown'
 
 const { width, height } = Dimensions.get("window");
 
-const MovieScreen = () => {
+const MovieScreen = ({ navigation }) => {
   const languages = [
     'Chinese (Hong Kong)',
     'Czech',
@@ -48,9 +49,11 @@ const MovieScreen = () => {
   const [renderFlag, setRenderFlag] = useState(true);
   const [searchInput, setSearchInput] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [logoutVisible, setLogoutVisible] = useState(false);
   const [bkMrkFlag, setBkMarkFlag] = useState(false);
   const [favFlag, setFavFlag] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(null);
+  const [firstName, setFirstName] = useState(null);
 
   const callApi = () => {
     setPage(page + 1);
@@ -104,7 +107,6 @@ const MovieScreen = () => {
       const jsonValue = await AsyncStorage.getItem('Movies');
       if (jsonValue) {
         const parsedNotes = JSON.parse(jsonValue);
-        console.log(parsedNotes);
         setMovies(parsedNotes);
         setSearchMovies(parsedNotes);
       } else {
@@ -191,22 +193,31 @@ const MovieScreen = () => {
     if (selectedLanguage) {
       lang = LANG_MAP.get(selectedLanguage);
       sorted = movies.filter(movie => movie.original_language === lang);
-      console.log(sorted)
       setRenderFlag(!renderFlag);
       setSearchMovies(sorted);
     }
     if (rating) {
       lang = LANG_MAP.get(selectedLanguage);
       sorted = movies.filter(movie => movie.userRating >= rating);
-      console.log(sorted)
       setRenderFlag(!renderFlag);
       setSearchMovies(sorted);
     }
     setModalVisible(!modalVisible);
   };
+  ~
+    useEffect(() => {
+      getLocal();
+    }, []);
+
+  const getUserData = async () => {
+    const storedUseData = await AsyncStorage.getItem('userDetails');
+    const parsedData = JSON.parse(storedUseData);
+    console.log(parsedData);
+    setFirstName(parsedData.firstName);
+  };
 
   useEffect(() => {
-    getLocal();
+    getUserData();
   }, []);
 
   return (
@@ -218,9 +229,14 @@ const MovieScreen = () => {
       {hideSearch == false ?
         <Animatable.View ref={logoRef} animation={"fadeIn"} duration={400} easing="ease" style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20 }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Popular Movies</Text>
-          <TouchableOpacity onPress={handleIconPress}>
-            <Ionicons name="search" size={10 * 2.7} color="#000" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
+            <TouchableOpacity style={[{ width: 30, height: 30, marginHorizontal: 5 }]} onPress={handleIconPress}>
+              <Ionicons name="search" size={25} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.sortButton, { width: 30, height: 30, marginHorizontal: 5 }]} onPress={() => setLogoutVisible(true)}>
+              <Text style={{ fontSize: 20, color: 'red' }}>{Array.from(firstName ? firstName : <></>)[0]}</Text>
+            </TouchableOpacity>
+          </View>
         </Animatable.View>
         :
         <Animatable.View
@@ -301,7 +317,7 @@ const MovieScreen = () => {
               onSelect={(selectedItem) => {
                 setSelectedLanguage(selectedItem);
               }}
-              defaultButtonText={selectedLanguage?selectedLanguage:"Select Language"}
+              defaultButtonText={selectedLanguage ? selectedLanguage : "Select Language"}
               buttonStyle={styles.dropBtn}
               buttonTextStyle={{ color: '#333' }}
               dropdownStyle={{ marginTop: -3, backgroundColor: '#fafafa' }}
@@ -318,6 +334,12 @@ const MovieScreen = () => {
           </View>
         </View>
       </Modal>
+      <LogoutModal
+        visible={logoutVisible}
+        nav={navigation}
+        onClose={() => setLogoutVisible(false)}
+        firstName={firstName}
+      />
     </View>
   );
 };
