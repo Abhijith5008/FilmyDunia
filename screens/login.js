@@ -13,14 +13,17 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     const storedData = await AsyncStorage.getItem('userDetails');
+    console.log(storedData)
     const parsedData = JSON.parse(storedData);
     if (parsedData) {
       if (parsedData.username === username && parsedData.password === password) {
         setUsername('');
         setPassword('');
+        const token = '168hedwijjdiwo832idTokenhajhsjas';
+        await AsyncStorage.setItem('token', token);
         navigation.navigate('Movies');
-      }else
-      setErr("UserName or Password Incorrect !!! ");
+      } else
+        setErr("UserName or Password Incorrect !!! ");
     }
     else
       setErr("Login to continue !!! ");
@@ -37,7 +40,7 @@ const LoginScreen = ({ navigation }) => {
     if (username && password && firstName) {
       const userDetails = { firstName: firstName, username: username, password: password }
       await AsyncStorage.setItem('userDetails', JSON.stringify(userDetails));
-      const token = '168hedwijjdiwo832idTokenhajhsjas'; 
+      const token = '168hedwijjdiwo832idTokenhajhsjas';
       await AsyncStorage.setItem('token', token);
       setShowForm(false);
       setUsername('');

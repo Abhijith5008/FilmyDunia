@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Dimensions, Button, Modal, TouchableHighlight } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Dimensions, Modal } from 'react-native';
 import axios from 'axios';
 import MovieList from '../components/movieList';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
-import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Fuse from 'fuse.js';
 import { LANG_MAP } from '../components/languageMapper';
 import LogoutModal from '../components/logoutModal';
-import SelectDropdown from 'react-native-select-dropdown'
+import { Rating } from 'react-native-ratings';
+import SelectDropdown from 'react-native-select-dropdown';
 
 const { width, height } = Dimensions.get("window");
 
@@ -39,12 +40,16 @@ const MovieScreen = ({ navigation }) => {
   const [movies, setMovies] = useState('');
   const [searchMovies, setSearchMovies] = useState('');
   const [rating, setRating] = useState('');
+  const [cert, setCert] = useState('');
+  const [voteAvg, setVoteAvg] = useState('');
   const [page, setPage] = useState(1);
+  const [filterPage, setFilterPage] = useState(1);
   const searchRef = useRef(null);
   const logoRef = useRef(null);
   const [hideSearch, setHideSearch] = useState(false);
   const [popularityFlag, setPopularityFlag] = useState(false);
   const [asortFlag, setAsortFlag] = useState(false);
+  const [zsortFlag, setZsortFlag] = useState(false);
   const [filterFlag, setFilterFlag] = useState(false);
   const [renderFlag, setRenderFlag] = useState(true);
   const [searchInput, setSearchInput] = useState(null);
@@ -54,8 +59,12 @@ const MovieScreen = ({ navigation }) => {
   const [favFlag, setFavFlag] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(null);
   const [firstName, setFirstName] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
 
-  const callApi = () => {
+  const getPopMovie = () => {
+    if (filterFlag === true) {
+      filterMovies();
+    }
     setPage(page + 1);
     const options = {
       method: 'GET',
@@ -66,7 +75,6 @@ const MovieScreen = ({ navigation }) => {
         Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3YTE1MDJjNjhmYmZmMDAzNTI3Y2M3NDY1OGVhYWEzYSIsInN1YiI6IjY1ZDQ4OWZmMWQzNTYzMDE3YzFmNDZlYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.43XLAjqb1h9OtmSdQ2XmERG-j0g1A_4vhcuvli5X6nk'
       }
     };
-
     axios
       .request(options)
       .then(async function (response) {
@@ -74,6 +82,36 @@ const MovieScreen = ({ navigation }) => {
         setSearchMovies(prevMovies => [...prevMovies, ...response.data.results]);
         const updatedMovies = [...movies, ...response.data.results];
         await AsyncStorage.setItem('Movies', JSON.stringify(updatedMovies));
+      })
+      .catch(function (error) {
+        console.error(error);
+      });
+  };
+
+  const filterMovies = () => {
+    setFilterPage(filterPage + 1);
+    const options = {
+      method: 'GET',
+      url: 'https://api.themoviedb.org/3/discover/movie',
+      params: {
+        with_original_language: LANG_MAP.get(selectedLanguage),
+        page: filterPage,
+        include_adult: cert === "Adult" ? true : false,
+        vote_average: rating * 2,
+        vote_count: voteAvg
+      },
+      headers: {
+        accept: 'application/json',
+        Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3YTE1MDJjNjhmYmZmMDAzNTI3Y2M3NDY1OGVhYWEzYSIsInN1YiI6IjY1ZDQ4OWZmMWQzNTYzMDE3YzFmNDZlYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.43XLAjqb1h9OtmSdQ2XmERG-j0g1A_4vhcuvli5X6nk'
+      }
+    };
+    console.log(options);
+    axios
+      .request(options)
+      .then(async function (response) {
+        setMovies(response.data.results);
+        setModalVisible(false);
+        setSearchMovies(response.data.results);
       })
       .catch(function (error) {
         console.error(error);
@@ -110,7 +148,7 @@ const MovieScreen = ({ navigation }) => {
         setMovies(parsedNotes);
         setSearchMovies(parsedNotes);
       } else {
-        callApi();
+        getPopMovie();
       }
     } catch (e) {
       console.error('Error loading notes:', e);
@@ -139,6 +177,11 @@ const MovieScreen = ({ navigation }) => {
     }
   };
 
+  const handleFilterBtn = () => {
+    setFilterFlag(true);
+    setModalVisible(true);
+  };
+
   const sortByPopularity = () => {
     setRenderFlag(!renderFlag);
     setPopularityFlag(!popularityFlag);
@@ -159,6 +202,19 @@ const MovieScreen = ({ navigation }) => {
     } else {
       setSearchMovies(movies);
     }
+
+  };
+
+  const sortByAlphabeticalRev = () => {
+    setZsortFlag(!zsortFlag);
+    setRenderFlag(!renderFlag);
+    if (zsortFlag === false) {
+      const sorted = [...movies].sort((a, b) => a.title.localeCompare(b.title)).reverse();
+      setSearchMovies(sorted);
+    } else {
+      setSearchMovies(movies);
+    }
+
   };
 
   const sortByFav = () => {
@@ -204,15 +260,14 @@ const MovieScreen = ({ navigation }) => {
     }
     setModalVisible(!modalVisible);
   };
-  ~
-    useEffect(() => {
-      getLocal();
-    }, []);
+
+  useEffect(() => {
+    getLocal();
+  }, []);
 
   const getUserData = async () => {
     const storedUseData = await AsyncStorage.getItem('userDetails');
     const parsedData = JSON.parse(storedUseData);
-    console.log(parsedData);
     setFirstName(parsedData.firstName);
   };
 
@@ -234,7 +289,7 @@ const MovieScreen = ({ navigation }) => {
               <Ionicons name="search" size={25} color="#000" />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sortButton, { width: 30, height: 30, marginHorizontal: 5 }]} onPress={() => setLogoutVisible(true)}>
-              <Text style={{ fontSize: 20, color: 'red' }}>{Array.from(firstName ? firstName : <></>)[0]}</Text>
+              <Text style={{ fontSize: 20, color: 'purple' }}>{Array.from(firstName ? firstName : <></>)[0]}</Text>
             </TouchableOpacity>
           </View>
         </Animatable.View>
@@ -244,7 +299,7 @@ const MovieScreen = ({ navigation }) => {
           easing="ease"
           animation="bounceInRight"
           duration={600}
-          style={[styles.touch, { marginLeft: 14, margin: 5, flexDirection: "row", justifyContent: "space-between" }]}
+          style={[styles.touchView, { marginLeft: 14, margin: 5, flexDirection: "row", justifyContent: "space-between" }]}
         >
           <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-around" }}>
             <TouchableOpacity onPress={handleView}>
@@ -269,14 +324,18 @@ const MovieScreen = ({ navigation }) => {
         </Animatable.View>
       }
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.sortButton} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity style={styles.sortButton} onPress={handleFilterBtn}>
           <FontAwesome5 name="filter" size={24} color={filterFlag === true ? "black" : "grey"} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sortButton} onPress={sortByPopularity}>
+        {/* <TouchableOpacity style={styles.sortButton} onPress={sortByPopularity}>
           <Entypo name="line-graph" size={24} color={popularityFlag === true ? "black" : "grey"} />
         </TouchableOpacity>
+        */}
         <TouchableOpacity style={styles.sortButton} onPress={sortByAlphabetical}>
           <FontAwesome5 name="sort-alpha-down" size={24} color={asortFlag === true ? "black" : "grey"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={sortByAlphabeticalRev}>
+          <FontAwesome5 name="sort-alpha-down-alt" size={24} color={zsortFlag === true ? "black" : "grey"} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.sortButton} onPress={sortByWatchList}>
           <MaterialIcons name={bkMrkFlag ? 'bookmark' : 'bookmark-border'} size={24} color={bkMrkFlag === true ? "blue" : "grey"} />
@@ -285,50 +344,118 @@ const MovieScreen = ({ navigation }) => {
           <MaterialIcons name={favFlag ? 'favorite' : 'favorite-border'} size={24} color={favFlag === true ? "red" : "grey"} />
         </TouchableOpacity>
       </View>
-      <MovieList movies={searchMovies} callBack={callApi} reRenderCall={renderFlag} />
+      <MovieList movies={searchMovies} callBack={getPopMovie} reRenderCall={renderFlag} />
+
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => {
-          Alert.alert('Modal has been closed.');
           setModalVisible(!modalVisible);
         }}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <Text style={styles.modalText}>Filter</Text>
-            <View style={{ borderBottomColor: 'black', borderBottomWidth: StyleSheet.hairlineWidth, width: 200, marginVertical: 20 }} />
-            <View style={styles.userInput}>
-              <TextInput
-                placeholder="Search User Rating"
-                value={rating}
-                style={{
-                  textAlign: "left",
-                  color: "#333232",
-                  fontSize: 10 * 2,
-                  marginLeft: 10,
-                  width: 200
-                }}
-                onChangeText={(e) => setRating(e)}
-              />
+            <Text style={[styles.modalText, { fontWeight: 600 }]}>Apply Filters</Text>
+            <View style={{ borderBottomColor: 'black', borderBottomWidth: StyleSheet.hairlineWidth, width: 300, marginVertical: 10 }} />
+            <View style={styles.sideColumn}>
+              <TouchableOpacity
+                style={[styles.sideButton, selectedSection === "Vote Average" && styles.selectedButton]}
+                onPress={() => setSelectedSection("Vote Average")}
+              >
+                <Text>Vote Average</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sideButton, selectedSection === "Vote Count" && styles.selectedButton]}
+                onPress={() => setSelectedSection("Vote Count")}
+              >
+                <Text>Vote Count</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sideButton, selectedSection === "Certification" && styles.selectedButton]}
+                onPress={() => setSelectedSection("Certification")}
+              >
+                <Text>Certification</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sideButton, selectedSection === "Language" && styles.selectedButton]}
+                onPress={() => setSelectedSection("Language")}
+              >
+                <Text>Language</Text>
+              </TouchableOpacity>
             </View>
-            <SelectDropdown
-              data={languages}
-              onSelect={(selectedItem) => {
-                setSelectedLanguage(selectedItem);
-              }}
-              defaultButtonText={selectedLanguage ? selectedLanguage : "Select Language"}
-              buttonStyle={styles.dropBtn}
-              buttonTextStyle={{ color: '#333' }}
-              dropdownStyle={{ marginTop: -3, backgroundColor: '#fafafa' }}
-              dropdownTextStyle={{ color: '#333' }}
-            />
-            <View style={[styles.buttonsContainer, { justifyContent: "space-between", marginVertical: 20 }]}>
-              <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} title="Login" onPress={handleFilterClick}>
+
+            {/* Corresponding views for each section */}
+            {selectedSection === "Vote Average" && (
+              <View>
+                <Rating
+                  imageSize={30}
+                  onFinishRating={(e) => setRating(e)}
+                  style={{ paddingVertical: 10, position: "absolute", marginTop: 20, left: -5 }}
+                />
+
+              </View>
+            )}
+            {selectedSection === "Vote Count" && (
+              <View style={styles.userInput}>
+                <TextInput
+                  placeholder="Set Vote Count"
+                  value={voteAvg}
+                  style={{
+                    textAlign: "left",
+                    color: "#333232",
+                    fontSize: 10 * 2,
+                    marginLeft: 10,
+                    width: 200
+                  }}
+                  onChangeText={(e) => setVoteAvg(e)}
+                />
+              </View>
+            )}
+            {selectedSection === "Certification" && (
+              <View style={{ position: "absolute", top: 105, right: 80 }}>
+                <TouchableOpacity
+                  style={[styles.sideButton, cert === "PG-13" && styles.selectedButton, { marginVertical: 50 }]}
+                  onPress={() => setCert("PG-13")}
+                >
+                  <Text>PG-13</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sideButton, cert === "Adult" && styles.selectedButton]}
+                  onPress={() => setCert("Adult")}
+                >
+                  <Text>Adult</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {selectedSection === "Language" && (
+              <View>
+                <SelectDropdown
+                  data={languages}
+                  onSelect={(selectedItem) => {
+                    setSelectedLanguage(selectedItem);
+                  }}
+                  defaultButtonText={selectedLanguage ? selectedLanguage : "Select Language"}
+                  buttonStyle={styles.dropBtn}
+                  buttonTextStyle={{ color: '#333' }}
+                  dropdownStyle={{ marginTop: -3, backgroundColor: '#fafafa' }}
+                  dropdownTextStyle={{ color: '#333' }}
+                />
+              </View>
+            )}
+
+            {/* Apply and close buttons */}
+            <View style={[styles.buttonsContainer, { position: "absolute", bottom: 20 }]}>
+              <TouchableOpacity
+                style={[styles.touch, { backgroundColor: "black" }]}
+                onPress={filterMovies}
+              >
                 <Text style={{ color: "#fff", fontSize: 16 }}>Apply</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} title="Login" onPress={() => setModalVisible(!modalVisible)} >
-                <Text style={{ color: "#fff", fontSize: 16 }}>close</Text>
+              <TouchableOpacity
+                style={[styles.touch, { backgroundColor: "black" }]}
+                onPress={() => setModalVisible(!modalVisible)}
+              >
+                <Text style={{ color: "#fff", fontSize: 16 }}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -351,8 +478,33 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     backgroundColor: '#fcfcf7',
   },
+  selectedButton: {
+    backgroundColor: "lightblue",
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sideColumn: {
+    position: "absolute",
+    left: 15,
+    top: height / 10,
+    alignItems: "center",
+    marginRight: 20,
+  },
+  sideButton: {
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginVertical: 20,
+    borderRadius: 5,
+  },
   userInput: {
-    width: 195,
+    position: "absolute",
+    right: 20,
+    top: 170,
+    width: 185,
     height: 50,
     padding: 10,
     margin: 5,
@@ -361,14 +513,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#fcfcf7',
     borderRadius: 9,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 1,
     marginVertical: 20
   },
   titleImage: {
@@ -378,19 +522,14 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   dropBtn: {
+    position: "absolute",
+    top: 120,
+    left: -25,
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 5,
     backgroundColor: '#fcfcf7',
     borderRadius: 9,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 1,
     marginVertical: 20
   },
   buttonsContainer: {
@@ -415,6 +554,14 @@ const styles = StyleSheet.create({
     shadowRadius: 1,
   },
   touch: {
+    width: width / 5,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 5,
+    margin: 10,
+  },
+  touchView: {
     width: width / 1.1 - 10,
     height: height / 14,
     margin: 2,
@@ -437,6 +584,10 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   modalView: {
+    width: width / 1,
+    height: height / 1.5,
+    position: "absolute",
+    bottom: 0,
     margin: 20,
     backgroundColor: '#fcfcf7',
     borderRadius: 20,

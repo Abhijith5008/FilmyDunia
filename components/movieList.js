@@ -50,8 +50,6 @@ class MovieList extends PureComponent {
             });
 
             await AsyncStorage.setItem('Movies', JSON.stringify(updatedMovies));
-
-            console.log('Bookmark updated successfully!');
         } catch (error) {
             console.error('Error updating bookmark:', error);
         }

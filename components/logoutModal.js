@@ -30,20 +30,20 @@ const logoutModal = ({ visible, nav, onClose, firstName }) => {
         >
             <Animatable.View
                 animation="zoomInRight"
-                duration={800}
+                duration={400}
                 easing={'ease-in'}
                 ref={closeModalRef}
                 style={styles.modalContainer}
             >
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Hello {firstName}</Text>
-                    <View style={{ borderBottomColor: 'black', borderBottomWidth: StyleSheet.hairlineWidth, width: 180, marginVertical: 20 }} />
-                    <View style={[styles.buttonsContainer, { justifyContent: "space-between", marginVertical: 10 }]}>
-                        <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} onPress={handleLogout}>
-                            <Text style={{ color: "#fff", fontSize: 16 }}>Logout</Text>
+                    <View style={{ borderBottomColor: 'black', borderBottomWidth: StyleSheet.hairlineWidth, width: 160, marginVertical: 10 }} />
+                    <View style={[styles.buttonsContainer, { justifyContent: "space-between", marginVertical: 5, marginRight: 10 }]}>
+                        <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40  }]} onPress={handleLogout}>
+                            <Text style={{ color: "#fff", fontSize: 15, textAlign: "center",marginVertical:10 }}>Logout</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40, alignItems: "center", padding: 10, margin: 10 }]} onPress={handleClose} >
-                            <Text style={{ color: "#fff", fontSize: 16 }}>close</Text>
+                        <TouchableOpacity style={[styles.touch, { backgroundColor: "black", width: width / 5, height: 40 }]} onPress={handleClose} >
+                            <Text style={{ color: "#fff", fontSize: 15,textAlign: "center",marginVertical:10 }}>close</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -84,14 +84,11 @@ const styles = StyleSheet.create({
     buttonsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        marginBottom: 10,
     },
     touch: {
         width: width / 1.1 - 10,
         height: height / 14,
-        margin: 2,
         backgroundColor: '#fcfcf7',
-        padding: 15,
         borderRadius: 9,
         elevation: 5,
         shadowColor: '#000',
