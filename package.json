@@ -38,7 +38,7 @@
     "react-native-screens": "~3.29.0",
     "react-native-select-dropdown": "^3.4.0",
     "react-native-svg": "14.1.0",
-    "react-native-webview": "^13.8.1"
+    "react-native-webview": "13.6.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
