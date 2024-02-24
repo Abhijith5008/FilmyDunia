@@ -1,8 +1,10 @@
-import React, { useState, PureComponent } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import React, {  PureComponent } from 'react';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AirbnbRating } from 'react-native-ratings';
 import moment from 'moment';
+import axios from 'axios';
+import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get("window");
@@ -10,10 +12,12 @@ const { width, height } = Dimensions.get("window");
 class MovieList extends PureComponent {
     constructor(props) {
         super(props);
-
         this.state = {
             bookmarkedMovies: [],
             favoritedMovies: [],
+            trailerUrl: null,
+            selectedMovieId: null,
+            visibleMovieId:null
         };
     }
 
@@ -110,6 +114,35 @@ class MovieList extends PureComponent {
             bookmarkedMovies.includes(item.id)
     };
 
+    toggleTrailer = (id) => {
+        this.setState({ selectedMovieId: id });
+        const options = {
+            method: 'GET',
+            url: `https://api.themoviedb.org/3/movie/${id}/videos`,
+            params: { language: 'en-US' },
+            headers: {
+                accept: 'application/json',
+                Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3YTE1MDJjNjhmYmZmMDAzNTI3Y2M3NDY1OGVhYWEzYSIsInN1YiI6IjY1ZDQ4OWZmMWQzNTYzMDE3YzFmNDZlYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.43XLAjqb1h9OtmSdQ2XmERG-j0g1A_4vhcuvli5X6nk'
+            }
+        };
+        axios
+            .request(options)
+            .then(function (response) {
+                const result = response.data.results;
+                const extData = result.filter(function (e) {
+                    if (e.name === "Official Trailer")
+                        return e.key;
+                });
+                const key = extData[0].key;
+                const trailerUrl = `https://www.youtube.com/embed/${key}?modestbranding=1&rel=1&autoplay=1&showinfo=1&controls=0`;
+
+                console.log(trailerUrl)
+                this.setState({ trailerUrl });
+            }.bind(this))
+            .catch(function (error) {
+                console.error(error);
+            }.bind(this));
+    };
 
     handleFavIcon = (item) => {
         const { favoritedMovies } = this.state;
@@ -119,13 +152,27 @@ class MovieList extends PureComponent {
             favoritedMovies.includes(item.id)
     };
 
+    onViewableItemsChanged = ({ viewableItems }) => {
+        console.log(viewableItems);
+        if (viewableItems.length > 0) {
+            const visibleItem = viewableItems[0].item;
+            this.toggleTrailer(visibleItem.id);
+            this.setState({ visibleMovieId: visibleItem.id });
+        } else {
+            this.setState({ visibleMovieId: null });
+        }
+    };
+
     renderItem = ({ item }) => {
+        const { selectedMovieId,visibleMovieId , trailerUrl } = this.state;
+        const webViewRef = React.createRef();  
+
         return (
             <View style={[styles.container, { flex: 1, flexDirection: 'row', justifyContent: "space-around", alignItems: 'center', marginBottom: 5 }]}>
-                <Image source={{ uri: `https://image.tmdb.org/t/p/w500${item.poster_path}` }} style={{ width: 120, height: 170, marginLeft: 20 }} />
-                <View style={styles.inlinContainer}>
-                    <View style={[styles.textContainer, { marginVertical: 10, marginLeft: 20 }]}>
-                        <Text numberOfLines={4} style={{ fontSize: 20, fontWeight: '700', textAlign: "left" }}>{item.title}</Text>
+                <Image source={{ uri: `https://image.tmdb.org/t/p/w500${item.poster_path}` }} style={{ width: 120, height: 170, marginLeft: 20, display: selectedMovieId === item.id ? 'none' : 'flex' }} />
+                <View style={[styles.inlinContainer, { display: selectedMovieId === item.id ? 'none' : 'flex' }]}>
+                    <View style={[styles.textContainer, { marginLeft: 20 }]}>
+                        <Text numberOfLines={2} style={{ fontSize: 20, fontWeight: '700', textAlign: "left" }}>{item.title}</Text>
                         <Text style={{ fontSize: 16, fontWeight: '300', marginTop: 3, paddingLeft: 5, textAlign: "center" }}>{this.formatDate(item.release_date)}</Text>
                     </View>
                     {item.adult === true ? <Text style={{ fontSize: 18, fontWeight: '300', marginRight: width / 3.2, padding: 5, marginVertical: 10 }}>R</Text> : <Text style={{ fontSize: 18, fontWeight: '300', marginRight: width / 3.2, padding: 5, marginVertical: 10 }}>PG-13</Text>}
@@ -140,7 +187,7 @@ class MovieList extends PureComponent {
                         size={17}
                     />
                 </View>
-                <View style={styles.iconContainer}>
+                <View style={[styles.iconContainer, { display: selectedMovieId === item.id ? 'none' : 'flex' }]}>
                     <TouchableOpacity style={{ marginVertical: 25 }} onPress={() => this.handleBookMark(item.id)}>
                         <MaterialIcons name={this.handleBookMarkIcon(item) ? 'bookmark' : 'bookmark-border'} size={25} color={'blue'} />
                     </TouchableOpacity>
@@ -148,9 +195,23 @@ class MovieList extends PureComponent {
                         <MaterialIcons name={this.handleFavIcon(item) ? 'favorite' : 'favorite-border'} size={25} color={'red'} />
                     </TouchableOpacity>
                 </View>
+                {visibleMovieId === item.id && selectedMovieId === item.id && trailerUrl && (
+                    <WebView
+                        ref={webViewRef}
+                        javaScriptEnabled={true}
+                        originWhitelist={['*']}
+                        injectedJavaScript="document.getElementsByTagName('video')[0].play();"
+                        domStorageEnabled={true}
+                        source={{ uri: trailerUrl }}
+                        allowsInlineMediaPlayback={true}
+                        mediaPlaybackRequiresUserAction={false}
+                        style={{ width: width, height: 200 }}
+                    />
+                )}
             </View>
         );
     };
+
 
     handleEndReached = () => {
         const { callBack, reRenderCall } = this.props;
@@ -159,15 +220,20 @@ class MovieList extends PureComponent {
         }
     };
 
+    
+
     render() {
         const { movies } = this.props;
 
         return (
             <FlatList
                 data={movies}
+                refreshing={true}
                 renderItem={this.renderItem}
                 keyExtractor={(item, index) => item.id.toString() + index.toString()}
                 onEndReached={this.handleEndReached}
+                onViewableItemsChanged={this.onViewableItemsChanged}
+                viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }} 
                 onEndReachedThreshold={0.1}
             />
         );
