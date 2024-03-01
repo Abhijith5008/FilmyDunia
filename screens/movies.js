@@ -92,6 +92,7 @@ const MovieScreen = ({ navigation }) => {
 
   const filterMovies = () => {
     setIsLoading(true);
+    setModalVisible(false);
     setFilterPage(filterPage + 1);
     const options = {
       method: 'GET',
@@ -112,9 +113,7 @@ const MovieScreen = ({ navigation }) => {
     axios
       .request(options)
       .then(async function (response) {
-        setMovies(response.data.results);
-        setModalVisible(false);
-        setIsLoading(false);
+        setMovies(response.data.results); 
         setSearchMovies(response.data.results);
       })
       .catch(function (error) {
