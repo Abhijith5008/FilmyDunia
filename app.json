@@ -11,35 +11,35 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "scheme":"com.rempays.filmydunia",
+    "scheme": "com.abhijith5008.filmydunia",
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rempays.filmydunia"
+      "bundleIdentifier": "com.abhijith5008.filmydunia"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.rempays.filmydunia"
+      "package": "com.abhijith5008.filmydunia"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "a05a621f-0ad3-4056-ba66-72e2e5c644b3"
-      }
-    },
-    "owner": "rempays",
+    "owner": "abhijith5008",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/a05a621f-0ad3-4056-ba66-72e2e5c644b3"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "001303b8-c19f-43f2-9c2a-b7852f3ccae5"
+      }
     }
   }
 }
