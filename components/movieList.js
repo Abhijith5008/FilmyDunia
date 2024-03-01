@@ -1,4 +1,4 @@
-import React, {  PureComponent } from 'react';
+import React, { PureComponent } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AirbnbRating } from 'react-native-ratings';
@@ -16,8 +16,10 @@ class MovieList extends PureComponent {
             bookmarkedMovies: [],
             favoritedMovies: [],
             trailerUrl: null,
+            errorText: '',
+            loading: false,
             selectedMovieId: null,
-            visibleMovieId:null
+            visibleMovieId: null
         };
     }
 
@@ -114,12 +116,12 @@ class MovieList extends PureComponent {
             bookmarkedMovies.includes(item.id)
     };
 
-    toggleTrailer = (id) => {
+    toggleTrailer = (id, lang) => {
         this.setState({ selectedMovieId: id });
         const options = {
             method: 'GET',
             url: `https://api.themoviedb.org/3/movie/${id}/videos`,
-            params: { language: 'en-US' },
+            params: { language: lang },
             headers: {
                 accept: 'application/json',
                 Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3YTE1MDJjNjhmYmZmMDAzNTI3Y2M3NDY1OGVhYWEzYSIsInN1YiI6IjY1ZDQ4OWZmMWQzNTYzMDE3YzFmNDZlYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.43XLAjqb1h9OtmSdQ2XmERG-j0g1A_4vhcuvli5X6nk'
@@ -129,18 +131,22 @@ class MovieList extends PureComponent {
             .request(options)
             .then(function (response) {
                 const result = response.data.results;
-                const extData = result.filter(function (e) {
-                    if (e.name === "Official Trailer")
-                        return e.key;
-                });
-                const key = extData[0].key;
-                const trailerUrl = `https://www.youtube.com/embed/${key}?modestbranding=1&rel=1&autoplay=1&showinfo=1&controls=0`;
-
-                console.log(trailerUrl)
-                this.setState({ trailerUrl });
+                if (result.length > 0) {
+                    const extData = result.filter(function (e) {
+                        if (e.official === true || e.type === "Trailer")
+                            return e.key;
+                    });
+                    const key = extData[0].key;
+                    const trailerUrl = `https://www.youtube.com/embed/${key}?modestbranding=1&rel=1&autoplay=1&showinfo=1&controls=0`;
+                    this.setState({ trailerUrl });
+                } else {
+                    console.log("empty array");
+                    this.setState({ trailerUrl: null, errorText: "Trailer Not Found" });
+                }
             }.bind(this))
             .catch(function (error) {
                 console.error(error);
+                this.setState({ trailerUrl: null, errorText: "Trailer Not Found" });
             }.bind(this));
     };
 
@@ -153,10 +159,11 @@ class MovieList extends PureComponent {
     };
 
     onViewableItemsChanged = ({ viewableItems }) => {
-        console.log(viewableItems);
         if (viewableItems.length > 0) {
             const visibleItem = viewableItems[0].item;
-            this.toggleTrailer(visibleItem.id);
+            const lang = visibleItem.original_language;
+            this.setState({ errorText: '' });
+            this.toggleTrailer(visibleItem.id, lang);
             this.setState({ visibleMovieId: visibleItem.id });
         } else {
             this.setState({ visibleMovieId: null });
@@ -164,13 +171,12 @@ class MovieList extends PureComponent {
     };
 
     renderItem = ({ item }) => {
-        const { selectedMovieId,visibleMovieId , trailerUrl } = this.state;
-        const webViewRef = React.createRef();  
+        const { selectedMovieId, visibleMovieId, trailerUrl, errorText } = this.state;
 
         return (
             <View style={[styles.container, { flex: 1, flexDirection: 'row', justifyContent: "space-around", alignItems: 'center', marginBottom: 5 }]}>
-                <Image source={{ uri: `https://image.tmdb.org/t/p/w500${item.poster_path}` }} style={{ width: 120, height: 170, marginLeft: 20, display: selectedMovieId === item.id ? 'none' : 'flex' }} />
-                <View style={[styles.inlinContainer, { display: selectedMovieId === item.id ? 'none' : 'flex' }]}>
+                <Image source={{ uri: `https://image.tmdb.org/t/p/w500${item.poster_path}` }} style={{ width: 120, height: 170, marginLeft: 20, display: (selectedMovieId === item.id && trailerUrl !== null) ? 'none' : 'flex' }} />
+                <View style={[styles.inlinContainer, { display: (selectedMovieId === item.id && trailerUrl !== null) ? 'none' : 'flex' }]}>
                     <View style={[styles.textContainer, { marginLeft: 20 }]}>
                         <Text numberOfLines={2} style={{ fontSize: 20, fontWeight: '700', textAlign: "left" }}>{item.title}</Text>
                         <Text style={{ fontSize: 16, fontWeight: '300', marginTop: 3, paddingLeft: 5, textAlign: "center" }}>{this.formatDate(item.release_date)}</Text>
@@ -186,8 +192,11 @@ class MovieList extends PureComponent {
                         reviewSize={15}
                         size={17}
                     />
+                    {(visibleMovieId === item.id && selectedMovieId === item.id) && (
+                        <Text style={{ fontSize: 15, textAlign: "center", color: "red" }}>{errorText}</Text>
+                    )}
                 </View>
-                <View style={[styles.iconContainer, { display: selectedMovieId === item.id ? 'none' : 'flex' }]}>
+                <View style={[styles.iconContainer, { display: (selectedMovieId === item.id && trailerUrl !== null) ? 'none' : 'flex' }]}>
                     <TouchableOpacity style={{ marginVertical: 25 }} onPress={() => this.handleBookMark(item.id)}>
                         <MaterialIcons name={this.handleBookMarkIcon(item) ? 'bookmark' : 'bookmark-border'} size={25} color={'blue'} />
                     </TouchableOpacity>
@@ -197,10 +206,8 @@ class MovieList extends PureComponent {
                 </View>
                 {visibleMovieId === item.id && selectedMovieId === item.id && trailerUrl && (
                     <WebView
-                        ref={webViewRef}
                         javaScriptEnabled={true}
                         originWhitelist={['*']}
-                        injectedJavaScript="document.getElementsByTagName('video')[0].play();"
                         domStorageEnabled={true}
                         source={{ uri: trailerUrl }}
                         allowsInlineMediaPlayback={true}
@@ -220,20 +227,20 @@ class MovieList extends PureComponent {
         }
     };
 
-    
+
 
     render() {
         const { movies } = this.props;
-
         return (
-            <FlatList
+            < FlatList
                 data={movies}
                 refreshing={true}
                 renderItem={this.renderItem}
-                keyExtractor={(item, index) => item.id.toString() + index.toString()}
+                keyExtractor={(item, index) => item.id.toString() + index.toString()
+                }
                 onEndReached={this.handleEndReached}
                 onViewableItemsChanged={this.onViewableItemsChanged}
-                viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }} 
+                viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
                 onEndReachedThreshold={0.1}
             />
         );

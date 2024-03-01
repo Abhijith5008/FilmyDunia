@@ -38,6 +38,7 @@ const MovieScreen = ({ navigation }) => {
   ];
 
   const [movies, setMovies] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [searchMovies, setSearchMovies] = useState('');
   const [rating, setRating] = useState('');
   const [cert, setCert] = useState('');
@@ -78,6 +79,7 @@ const MovieScreen = ({ navigation }) => {
     axios
       .request(options)
       .then(async function (response) {
+        setIsLoading(false);
         setMovies(prevMovies => [...prevMovies, ...response.data.results]);
         setSearchMovies(prevMovies => [...prevMovies, ...response.data.results]);
         const updatedMovies = [...movies, ...response.data.results];
@@ -89,6 +91,7 @@ const MovieScreen = ({ navigation }) => {
   };
 
   const filterMovies = () => {
+    setIsLoading(true);
     setFilterPage(filterPage + 1);
     const options = {
       method: 'GET',
@@ -111,6 +114,7 @@ const MovieScreen = ({ navigation }) => {
       .then(async function (response) {
         setMovies(response.data.results);
         setModalVisible(false);
+        setIsLoading(false);
         setSearchMovies(response.data.results);
       })
       .catch(function (error) {
@@ -146,6 +150,7 @@ const MovieScreen = ({ navigation }) => {
       if (jsonValue) {
         const parsedNotes = JSON.parse(jsonValue);
         setMovies(parsedNotes);
+        setIsLoading(false);
         setSearchMovies(parsedNotes);
       } else {
         getPopMovie();
@@ -344,8 +349,15 @@ const MovieScreen = ({ navigation }) => {
           <MaterialIcons name={favFlag ? 'favorite' : 'favorite-border'} size={24} color={favFlag === true ? "red" : "grey"} />
         </TouchableOpacity>
       </View>
-      <MovieList movies={searchMovies} callBack={getPopMovie} reRenderCall={renderFlag} />
-
+      {isLoading === true && (
+        <Image
+          source={require("../assets/gihf.gif")}
+          style={styles.loaderWrapper}
+        ></Image>
+      )}
+      {isLoading === false && (
+        <MovieList movies={searchMovies} callBack={getPopMovie} reRenderCall={renderFlag} />
+      )}
       <Modal
         animationType="slide"
         transparent={true}
@@ -621,6 +633,12 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 20,
     textAlign: 'center',
+  },
+  loaderWrapper: {
+      width: 450,
+      height: 450,
+      resizeMode: "contain",
+      alignSelf: "center"
   },
 });
 

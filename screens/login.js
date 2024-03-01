@@ -13,7 +13,6 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     const storedData = await AsyncStorage.getItem('userDetails');
-    console.log(storedData)
     const parsedData = JSON.parse(storedData);
     if (parsedData) {
       if (parsedData.username === username && parsedData.password === password) {
