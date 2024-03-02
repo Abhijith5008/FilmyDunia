@@ -113,6 +113,7 @@ const MovieScreen = ({ navigation }) => {
     axios
       .request(options)
       .then(async function (response) {
+        setIsLoading(false);
         setMovies(response.data.results); 
         setSearchMovies(response.data.results);
       })
